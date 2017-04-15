@@ -1,0 +1,769 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>question</key>
+		<string>__block和__weak修饰符的区别</string>
+		<key>answer</key>
+		<string>__block和__weak修饰符的区别其实是挺明显的：
+
+1.__block不管是ARC还是MRC模式下都可以使用，可以修饰对象，还可以修饰基本数据类型。
+2.__weak只能在ARC模式下使用，也只能修饰对象（NSString），不能修饰基本数据类型（int）。
+3.__block对象可以在block中被重新赋值，__weak不可以。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>SDWebImage内部实现过程</string>
+		<key>answer</key>
+		<string>- 入口 setImageWithURL:placeholderImage:options: 会先把 placeholderImage 显示，然后 SDWebImageManager 根据 URL 开始处理图片。
+
+- 进入 SDWebImageManager-downloadWithURL:delegate:options:userInfo:，交给 SDImageCache 从缓存查找图片是否已经下载 queryDiskCacheForKey:delegate:userInfo:.
+
+- 先从内存图片缓存查找是否有图片，如果内存中已经有图片缓存，SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo: 到 SDWebImageManager。
+
+- SDWebImageManagerDelegate 回调 webImageManager:didFinishWithImage: 到 UIImageView+WebCache 等前端展示图片。
+
+- 如果内存缓存中没有，生成 NSInvocationOperation 添加到队列开始从硬盘查找图片是否已经缓存。
+
+- 根据 URLKey 在硬盘缓存目录下尝试读取图片文件。这一步是在 NSOperation 进行的操作，所以回主线程进行结果回调 notifyDelegate:。
+
+- 如果上一操作从硬盘读取到了图片，将图片添加到内存缓存中（如果空闲内存过小，会先清空内存缓存）。SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo:。进而回调展示图片。
+
+- 如果从硬盘缓存目录读取不到图片，说明所有缓存都不存在该图片，需要下载图片，回调 imageCache:didNotFindImageForKey:userInfo:。
+
+- 共享或重新生成一个下载器 SDWebImageDownloader 开始下载图片。
+
+- 图片下载由 NSURLConnection 来做，实现相关 delegate 来判断图片下载中、下载完成和下载失败。
+
+- connection:didReceiveData: 中利用 ImageIO 做了按图片下载进度加载效果。
+
+- connectionDidFinishLoading: 数据下载完成后交给 SDWebImageDecoder 做图片解码处理。
+
+- 图片解码处理在一个 NSOperationQueue 完成，不会拖慢主线程 UI。如果有需要对下载的图片进行二次处理，最好也在这里完成，效率会好很多。
+
+- 在主线程 notifyDelegateOnMainThreadWithInfo: 宣告解码完成，imageDecoder:didFinishDecodingImage:userInfo: 回调给 SDWebImageDownloader。
+
+- imageDownloader:didFinishWithImage: 回调给 SDWebImageManager 告知图片下载完成。
+
+- 通知所有的 downloadDelegates 下载完成，回调给需要的地方展示图片。
+
+- 将图片保存到 SDImageCache 中，内存缓存和硬盘缓存同时保存。写文件到硬盘也在以单独 NSInvocationOperation 完成，避免拖慢主线程。
+
+- SDImageCache 在初始化的时候会注册一些消息通知，在内存警告或退到后台的时候清理内存图片缓存，应用结束的时候清理过期图片。
+
+- SDWI 也提供了 UIButton+WebCache 和 MKAnnotationView+WebCache，方便使用。
+
+- SDWebImagePrefetcher 可以预先下载图片，方便后续使用。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>__block和__weak修饰符的区别</string>
+		<key>answer</key>
+		<string>__block和__weak修饰符的区别其实是挺明显的：
+            
+            1.__block不管是ARC还是MRC模式下都可以使用，可以修饰对象，还可以修饰基本数据类型。
+            2.__weak只能在ARC模式下使用，也只能修饰对象（NSString），不能修饰基本数据类型（int）。
+            3.__block对象可以在block中被重新赋值，__weak不可以。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>解释下Http Keep-Alive</string>
+		<key>answer</key>
+		<string>HTTP是一个请求&lt;-&gt;响应模式的典型范例，即客户端向服务器发送一个请求信息，服务器来响应这个信息。在老的HTTP版本中，每个请求都将被创建一个新的客户端-&gt;服务器的连接，在这个连接上发送请求，然后接收请求。这样的模式有一个很大的优点就是，它很简单，很容易理解和编程实现；它也有一个很大的缺点就是，它效率很低，因此Keep-Alive被提出用来解决效率低的问题。
+Keep-Alive功能使客户端到服务器端的连接持续有效，当出现对服务器的后继请求时，Keep-Alive功能避免了建立或者重新建立连接。市场上 的大部分Web服务器，包括iPlanet、IIS和Apache，都支持HTTP Keep-Alive。对于提供静态内容的网站来说，这个功能通常很有用。但是，对于负担较重的网站来说，这里存在另外一个问题：虽然为客户保留打开的连 接有一定的好处，但它同样影响了性能，因为在处理暂停期间，本来可以释放的资源仍旧被占用。当Web服务器和应用服务器在同一台机器上运行时，Keep- Alive功能对资源利用的影响尤其突出。 此功能为HTTP 1.1预设的功能，HTTP 1.0加上Keep-Aliveheader也可以提供HTTP的持续作用功能。
+Keep-Alive: timeout=5, max=100
+timeout：过期时间5秒（对应httpd.conf里的参数是：KeepAliveTimeout），max是最多一百次请求，强制断掉连接
+就是在timeout时间内又有新的连接过来，同时max会自动减1，直到为0，强制断掉。见下面的四个图，注意看Date的值（前后时间差都是在5秒之内）！
+
+HTTP/1.0
+在HTTP/1.0版本中，并没有官方的标准来规定Keep-Alive如何工作，因此实际上它是被附加到HTTP/1.0协议上，如果客户端浏览器支持Keep-Alive，那么就在HTTP请求头中添加一个字段 Connection: Keep-Alive，当服务器收到附带有Connection: Keep-Alive的请求时，它也会在响应头中添加一个同样的字段来使用Keep-Alive。这样一来，客户端和服务器之间的HTTP连接就会被保持，不会断开（超过Keep-Alive规定的时间，意外断电等情况除外），当客户端发送另外一个请求时，就使用这条已经建立的连接
+HTTP/1.1
+在HTTP/1.1版本中，官方规定的Keep-Alive使用标准和在HTTP/1.0版本中有些不同，默认情况下所在HTTP1.1中所有连接都被保持，除非在请求头或响应头中指明要关闭：Connection: Close  ，这也就是为什么Connection: Keep-Alive字段再没有意义的原因。另外，还添加了一个新的字段Keep-Alive:，因为这个字段并没有详细描述用来做什么，可忽略它
+
+Not reliable（不可靠）
+
+HTTP是一个无状态协议，这意味着每个请求都是独立的，Keep-Alive没能改变这个结果。另外，Keep-Alive也不能保证客户端和服务器之间的连接一定是活跃的，在HTTP1.1版本中也如此。唯一能保证的就是当连接被关闭时你能得到一个通知，所以不应该让程序依赖于Keep-Alive的保持连接特性，否则会有意想不到的后果
+
+Keep-Alive和POST
+
+在HTTP1.1细则中规定了在一个POST消息体后面不能有任何字符，还指出了对于某一个特定的浏览器可能并不遵循这个标准（比如在POST消息体的后面放置一个CRLF符）。而据我所知，大部分浏览器在POST消息体后都会自动跟一个CRLF符再发送，如何解决这个问题呢？根据上面的说明在POST请求头中禁止使用Keep-Alive，或者由服务器自动忽略这个CRLF，大部分服务器都会自动忽略，但是在未经测试之前是不可能知道一个服务器是否会这样做。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>dispatch_group_async的使用</string>
+		<key>answer</key>
+		<string>dispatch_group_async可以实现监听一组任务是否完成，完成后得到通知执行其他的操作。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>dispatch_barrier_async的使用</string>
+		<key>answer</key>
+		<string>dispatch_barrier_async是在前面的任务执行结束后它才执行，而且它后面的任务等它执行完成之后才会执行</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>copy与retain区别</string>
+		<key>answer</key>
+		<string>1、copy其实是建立了一个相同的对象，而retain不是；
+2、copy是内容拷贝，retain是指针拷贝；
+
+3、copy是内容的拷贝 ,对于像NSString,的确是这样，但是如果copy的是一个NSArray呢?这时只是copy了指向array中相对应元素的指针.这便是所谓的&quot;浅复制&quot;.
+4、copy的情况：NSString *newPt = [pt copy];
+此时会在堆上重新开辟一段内存存放@&quot;abc&quot; 比如0X1122 内容为@&quot;abc 同时会在栈上为newPt分配空间 比如地址：0Xaacc 内容为0X1122 因此retainCount增加1供newPt来管理0X1122这段内存；</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>assign与retain区别</string>
+		<key>answer</key>
+		<string>1、assign: 简单赋值，不更改索引计数；
+2、assign的情况：NSString *newPt = [pt assing];
+
+此时newPt和pt完全相同 地址都是0Xaaaa 内容为0X1111 即newPt只是pt的别名，对任何一个操作就等于对另一个操作， 因此retainCount不需要增加；
+3、assign就是直接赋值；
+4、retain使用了引用计数，retain引起引用计数加1, release引起引用计数减1，当引用计数为0时，dealloc函数被调用，内存被回收；
+
+
+
+
+
+5、retain的情况：NSString *newPt = [pt retain];
+此时newPt的地址不再为0Xaaaa，可能为0Xaabb 但是内容依然为0X1111。 因此newPt 和 pt 都可以管理&quot;abc&quot;所在的内存，因此 retainCount需要增加1 ；</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>weak and strong property (强引用和弱引用的区别)：</string>
+		<key>answer</key>
+		<string>1、 weak 和 strong 属性只有在你打开ARC时才会被要求使用，这时你是不能使用retain release autorelease 操作的，因为ARC会自动为你做好这些操作，但是你需要在对象属性上使用weak 和strong,其中strong就相当于retain属性，而weak相当于assign。
+2、只有一种情况你需要使用weak（默认是strong），就是为了避免retain cycles（就是父类中含有子类{父类retain了子类}，子类中又调用了父类{子类又retain了父类}，这样都无法release）
+
+
+
+3、声明为weak的指针，指针指向的地址一旦被释放，这些指针都将被赋值为nil。这样
+的好处能有效的防止野指针。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>ARC(Automatic Reference Counting):</string>
+		<key>answer</key>
+		<string>1、就是代码中自动加入了retain/release，原先需要手动添加的用来处理内存管理的引用计数的代码可以自动地由编译器完成了。
+该机能在 iOS 5/ Mac OS X 10.7 开始导入，利用 Xcode4.2 以后可以使用该特性。
+strong,weak,copy 具体用法：
+
+1.具体一点：IBOutlet可以为weak，NSString为copy，Delegate一般为weak，其他的看情况。一般来说，类“内部”的属性设置为strong，类“外部”的属性设置为weak。说到底就是一个归属权的问题。小心出现循环引用导致内存无法释放。
+2.不用ARC的话就会看到很多retian。
+3.如果你写了@synthesize abc = _abc；的话，系统自动帮你声明了一个_abc的实例变量。
+   使用assign: 对基础数据类型 （NSInteger）和C数据类型（int, float, double, char,等）
+   使用copy： 对NSString    使用retain： 对其他NSObject和其子类</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>static 关键字的作用：</string>
+		<key>answer</key>
+		<string>（1）函数体内 static 变量的作用范围为该函数体，不同于 auto 变量，该变量的内存只被分配一次，
+
+因此其值在下次调用时仍维持上次的值；
+
+（2）在模块内的 static 全局变量可以被模块内所用函数访问，但不能被模块外其它函数访问；
+
+（3）在模块内的 static 函数只可被这一模块内的其它函数调用，这个函数的使用范围被限制在声明
+
+它的模块内；
+
+（4）在类中的 static 成员变量属于整个类所拥有，对类的所有对象只有一份拷贝；
+
+（5）在类中的 static 成员函数属于整个类所拥有，这个函数不接收 this 指针，因而只能访问类的static 成员变量。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>线程与进程的区别和联系</string>
+		<key>answer</key>
+		<string>进程和线程都是由操作系统所体会的程序运行的基本单元，系统利用该基本单元实现系统对应用的并发性。
+
+程和线程的主要差别在于它们是不同的操作系统资源管理方式。进程有独立的地址空间，一个进程崩溃后，在保护模式下不会对其它进程产生影响，而线程只是一个进程中的不同执行路径。线程有自己的堆栈和局部变量，但线程之间没有单独的地址空间，一个线程死掉就等于整个进程死掉，所以多进程的程序要比多线程的程序健壮，但在进程切换时，耗费资源较大，效率要差一些。但对于一些要求同时进行并且又要共享某些变量的并发操作，只能用线程，不能用进程。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>堆和栈的区别</string>
+		<key>answer</key>
+		<string>管理方式：对于栈来讲，是由编译器自动管理，无需我们手工控制；对于堆来说，释放工作由程序员控制，容易产生memory leak。
+
+申请大小：
+
+栈：在Windows下,栈是向低地址扩展的数据结构，是一块连续的内存的区域。这句话的意思是栈顶的地址和栈的最大容量是系统预先规定好的，在 WINDOWS下，栈的大小是2M（也有的说是1M，总之是一个编译时就确定的常数），如果申请的空间超过栈的剩余空间时，将提示overflow。因此，能从栈获得的空间较小。
+
+堆：堆是向高地址扩展的数据结构，是不连续的内存区域。这是由于系统是用链表来存储的空闲内存地址的，自然是不连续的，而链表的遍历方向是由低地址向高地址。堆的大小受限于计算机系统中有效的虚拟内存。由此可见，堆获得的空间比较灵活，也比较大。
+
+碎片问题：对于堆来讲，频繁的new/delete势必会造成内存空间的不连续，从而造成大量的碎片，使程序效率降低。对于栈来讲，则不会存在这个问题，因为栈是先进后出的队列，他们是如此的一一对应，以至于永远都不可能有一个内存块从栈中间弹出
+
+分配方式：堆都是动态分配的，没有静态分配的堆。栈有2种分配方式：静态分配和动态分配。静态分配是编译器完成的，比如局部变量的分配。动态分配由alloca函数进行分配，但是栈的动态分配和堆是不同的，他的动态分配是由编译器进行释放，无需我们手工实现。
+
+分配效率：栈是机器系统提供的数据结构，计算机会在底层对栈提供支持：分配专门的寄存器存放栈的地址，压栈出栈都有专门的指令执行，这就决定了栈的效率比较高。堆则是C/C++函数库提供的，它的机制是很复杂的。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>什么是键-值,键路径是什么</string>
+		<key>answer</key>
+		<string>模型的性质是通过一个简单的键（通常是个字符串）来指定的。视图和控制器通过键来查找相应的属性值。在一个给定的实体中，同一个属性的所有值具有相同的数据类型。键-值编码技术用于进行这样的查找—它是一种间接访问对象属性的机制。
+
+键路径是一个由用点作分隔符的键组成的字符串，用于指定一个连接在一起的对象性质序列。第一个键的
+
+性质是由先前的性质决定的，接下来每个键的值也是相对于其前面的性质。键路径使您可以以独立于模型
+
+实现的方式指定相关对象的性质。通过键路径，您可以指定对象图中的一个任意深度的路径，使其指向相
+
+关对象的特定属性。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>目标-动作机制</string>
+		<key>answer</key>
+		<string>目标是动作消息的接收者。一个控件，或者更为常见的是它的单元，以插座变量（参见&quot;插座变量&quot;部分）
+
+的形式保有其动作消息的目标。
+
+动作是控件发送给目标的消息，或者从目标的角度看，它是目标为了响应动作而实现的方法。
+
+程序需要某些机制来进行事件和指令的翻译。这个机制就是目标-动作机制。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>objc的内存管理</string>
+		<key>answer</key>
+		<string>如果您通过分配和初始化（比如[[MyClass alloc] init]）的方式来创建对象，您就拥
+
+有这个对象，需要负责该对象的释放。这个规则在使用NSObject的便利方法new 时也同样适用。
+  如果您拷贝一个对象，您也拥有拷贝得到的对象，需要负责该对象的释放。
+
+ 如果您保持一个对象，您就部分拥有这个对象，需要在不再使用时释放该对象。
+
+反过来，
+
+  如果您从其它对象那里接收到一个对象，则您不拥有该对象，也不应该释放它（这个规则有少数
+
+的例外，在参考文档中有显式的说明）。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>自动释放池是什么,如何工作</string>
+		<key>answer</key>
+		<string>当您向一个对象发送一个autorelease消息时，Cocoa就会将该对象的一个引用放入到最新的自动释放池。它仍然是个正当的对象，因此自动释放池定义的作用域内的其它对象可以向它发送消息。当程序执行到作用域结束的位置时，自动释放池就会被释放，池中的所有对象也就被释放。
+
+1.  ojc-c 是通过一种&quot;referring counting&quot;(引用计数)的方式来管理内存的, 对象在开始分配内存(alloc)的时候引用计数为一,以后每当碰到有copy,retain的时候引用计数都会加一, 每当碰到release和autorelease的时候引用计数就会减一,如果此对象的计数变为了0, 就会被系统销毁.
+
+2. NSAutoreleasePool 就是用来做引用计数的管理工作的,这个东西一般不用你管的.
+
+3. autorelease和release没什么区别,只是引用计数减一的时机不同而已,autorelease会在对象的使用真正结束的时候才做引用计数减一.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>类工厂方法是什么</string>
+		<key>answer</key>
+		<string>类工厂方法的实现是为了向客户提供方便，它们将分配和初始化合在一个步骤中，返回被创建的对象，并
+
+进行自动释放处理。这些方法的形式是+ (type)className...（其中 className不包括任何前缀）。
+
+工厂方法可能不仅仅为了方便使用。它们不但可以将分配和初始化合在一起，还可以为初始化过程提供对
+
+象的分配信息。
+
+类工厂方法的另一个目的是使类（比如NSWorkspace）提供单件实例。虽然init...方法可以确认一
+
+个类在每次程序运行过程只存在一个实例，但它需要首先分配一个“生的”实例，然后还必须释放该实例。
+
+工厂方法则可以避免为可能没有用的对象盲目分配内存。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>单件实例是什么</string>
+		<key>answer</key>
+		<string>Foundation 和 Application Kit 框架中的一些类只允许创建单件对象，即这些类在当前进程中的唯一实例。举例来说，NSFileManager 和NSWorkspace 类在使用时都是基于进程进行单件对象的实例化。当向这些类请求实例的时候，它们会向您传递单一实例的一个引用，如果该实例还不存在，则首先进行实例的分配和初始化。单件对象充当控制中心的角色，负责指引或协调类的各种服务。如果类在概念上只有一个实例（比如
+
+NSWorkspace），就应该产生一个单件实例，而不是多个实例；如果将来某一天可能有多个实例，您可
+
+以使用单件实例机制，而不是工厂方法或函数。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>动态绑定</string>
+		<key>answer</key>
+		<string>—在运行时确定要调用的方法
+动态绑定将调用方法的确定也推迟到运行时。在编译时，方法的调用并不和代码绑定在一起，只有在消实发送出来之后，才确定被调用的代码。通过动态类型和动态绑定技术，您的代码每次执行都可以得到不同的结果。运行时因子负责确定消息的接收者和被调用的方法。运行时的消息分发机制为动态绑定提供支持。当您向一个动态类型确定了的对象发送消息时，运行环境系统会通过接收者的isa指针定位对象的类，并以此为起点确定被调用的方法，方法和消息是动态绑定的。而且，您不必在Objective-C 代码中做任何工作，就可以自动获取动态绑定的好处。您在每次发送消息时，
+
+特别是当消息的接收者是动态类型已经确定的对象时，动态绑定就会例行而透明地发生。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>obj-c的优缺点</string>
+		<key>answer</key>
+		<string>objc优点：
+
+  1) Cateogies
+
+  2) Posing
+
+  3) 动态识别
+
+  4) 指标计算
+
+  5）弹性讯息传递
+
+  6) 不是一个过度复杂的 C 衍生语言
+
+  7) Objective-C 与 C++ 可混合编程
+
+缺点:
+
+  1) 不支援命名空间
+
+  2)  不支持运算符重载
+
+  3）不支持多重继承
+
+  4）使用动态运行时类型，所有的方法都是函数调用，所以很多编译时优化方法都用不到。（如内联函数等），性能低劣。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>sprintf,strcpy,memcpy使用上有什么要注意的地方</string>
+		<key>answer</key>
+		<string>strcpy是一个字符串拷贝的函数，它的函数原型为strcpy(char *dst, c*****t char *src);
+
+将 src开始的一段字符串拷贝到dst开始的内存中去，结束的标志符号为&apos;\0&apos;，由于拷贝的长度不是由我们自己控制的，所以这个字符串拷贝很容易出错。具备字符串拷贝功能的函数有memcpy，这是一个内存拷贝函数，它的函数原型为memcpy(char *dst, c*****t char* src, unsigned int len);
+
+将长度为len的一段内存，从src拷贝到dst中去，这个函数的长度可控。但是会有内存叠加的问题。
+
+sprintf是格式化函数。将一段数据通过特定的格式，格式化到一个字符串缓冲区中去。sprintf格式化的函数的长度不可控，有可能格式化后的字符串会超出缓冲区的大小，造成溢出。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>readwrite，readonly，assign，retain，copy，nonatomic属性的作用</string>
+		<key>answer</key>
+		<string>@property是一个属性访问声明，扩号内支持以下几个属性：
+
+1，getter=getterName，setter=setterName，设置setter与getter的方法名
+
+2，readwrite,readonly，设置可供访问级别
+
+2，assign，setter方法直接赋值，不进行任何retain操作，为了解决原类型与环循引用问题
+
+3，retain，setter方法对参数进行release旧值再retain新值，所有实现都是这个顺序(CC上有相关资料)
+
+4，copy，setter方法进行Copy操作，与retain处理流程一样，先旧值release，再Copy出新的对象，retainCount为1。这是为了减少对上下文的依赖而引入的机制。
+
+copy是在你不希望a和b共享一块内存时会使用到。a和b各自有自己的内存。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>nonatomic，非原子性访问，不加同步，多线程并发访问会提高性能。注意，如果不加此属性，则默认是两个访问方法都为原子型事务访问。锁被加到所属对象实例级(我是这么理解的...)。</string>
+		<key>answer</key>
+		<string>atomic和nonatomic用来决定编译器生成的getter和setter是否为原子操作。在多线程环境下，原子操作是必要的，否则有可能引起错 误的结果。加了atomic，setter函数会变成下面这样：</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>什么时候用delegate，什么时候用Notification</string>
+		<key>answer</key>
+		<string>delegate针对one-to-one关系，并且reciever可以返回值 给sender，notification 可以针对one-to-one/many/none,reciever无法返回值给sender.所以，delegate用于sender希望接受到 reciever的某个功能反馈值，notification用于通知多个object某个事件。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>什么是KVC和KVO</string>
+		<key>answer</key>
+		<string>KVC(Key-Value-Coding)内部的实现：一个对象在调用setValue的时候，（1）首先根据方法名找到运行方法的时候所需要的环境参数。（2）他会从自己isa指针结合环境参数，找到具体的方法实现的接口。（3）再直接查找得来的具体的方法实现。KVO（Key-Value- Observing）：当观察者为一个对象的属性进行了注册，被观察对象的isa指针被修改的时候，isa指针就会指向一个中间类，而不是真实的类。所以 isa指针其实不需要指向实例对象真实的类。所以我们的程序最好不要依赖于isa指针。在调用类的方法的时候，最好要明确对象实例的类名</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>ViewController 的 loadView, viewDidLoad, viewDidUnload 分别是在什么时候调用的</string>
+		<key>answer</key>
+		<string>在自定义ViewController的时候这几个函数里面应该做什么工作？答：viewDidLoad在view 从nib文件初始化时调用，loadView在controller的view为nil时调用。此方法在编程实现view时调用,view 控制器默认会注册memory warning notification,当view controller的任何view 没有用的时候，viewDidUnload会被调用，在这里实现将retain 的view release,如果是retain的IBOutlet view 属性则不要在这里release,IBOutlet会负责release 。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>类别的作用</string>
+		<key>answer</key>
+		<string>类别主要有3个作用：
+
+(1)将类的实现分散到多个不同文件或多个不同框架中。
+
+(2)创建对私有方法的前向引用。
+
+(3)向对象添加非正式协议。
+
+类别的局限性
+
+有两方面局限性：
+
+(1)无法向类中添加新的实例变量，类别没有位置容纳实例变量。
+
+(2)名称冲突，即当类别中的方法与原始类方法名称冲突时，类别具有更高的优先级。类别方法将完全取代初始方法从而无法再使用初始方法。
+
+无法添加实例变量的局限可以使用字典对象解决</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>关键字volatile有什么含意?并给出三个不同的例子：</string>
+		<key>answer</key>
+		<string>一个定义为volatile的变量是说这变量可能会被意想不到地改变，这样，编译器就不会去假设这个变量的值了。精确地说就是，优化器在用到
+
+这个变量时必须每次都小心地重新读取这个变量的值，而不是使用保存在寄存器里的备份。下面是volatile变量的几个例子：
+
+• 并行设备的硬件寄存器（如：状态寄存器）
+
+• 一个中断服务子程序中会访问到的非自动变量(Non-automatic variables)
+
+• 多线程应用中被几个任务共享的变量
+
+• 一个参数既可以是const还可以是volatile吗？解释为什么。
+
+• 一个指针可以是volatile 吗？解释为什么。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>@synthesize 和 @dynamic</string>
+		<key>answer</key>
+		<string>@synthesize 是系统自动生成getter和setter属性声明
+
+@dynamic 是开发者自已提供相应的属性声明
+
+@dynamic 意思是由开发人员提供相应的代码：对于只读属性需要提供 setter，对于读写属性需要提供 setter 和 getter。@synthesize 意思是，除非开发人员已经做了，否则由编译器生成相应的代码，以满足属性声明。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>浅复制和深复制的区别？</string>
+		<key>answer</key>
+		<string>浅层复制：只复制指向对象的指针，而不复制引用对象本身。
+深层复制：复制引用对象本身。
+意思就是说我有个A对象，复制一份后得到A_copy对象后，对于浅复制来说，A和A_copy指向的是同一个内存资源，复制的只不过是是一个指针，对象本身资源
+还是只有一份，那如果我们对A_copy执行了修改操作,那么发现A引用的对象同样被修改，这其实违背了我们复制拷贝的一个思想。深复制就好理解了,内存中存在了
+两份独立对象本身。
+用网上一哥们通俗的话将就是：
+浅复制好比你和你的影子，你完蛋，你的影子也完蛋
+深复制好比你和你的克隆人，你完蛋，你的克隆人还活着。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>类别的作用？继承和类别在实现中有何区别？</string>
+		<key>answer</key>
+		<string>category 可以在不获悉，不改变原来代码的情况下往里面添加新的方法，只能添加，不能删除修改。
+并且如果类别和原来类中的方法产生名称冲突，则类别将覆盖原来的方法，因为类别具有更高的优先级。
+类别主要有3个作用：
+(1)将类的实现分散到多个不同文件或多个不同框架中。
+(2)创建对私有方法的前向引用。
+(3)向对象添加非正式协议。
+ 继承可以增加，修改或者删除方法，并且可以增加属性。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>类别和类扩展的区别。</string>
+		<key>answer</key>
+		<string>category和extensions的不同在于 后者可以添加属性。另外后者添加的方法是必须要实现的。
+extensions可以认为是一个私有的Category。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>oc中的协议和java中的接口概念有何不同？</string>
+		<key>answer</key>
+		<string>OC中的代理有2层含义，官方定义为 formal和informal protocol。前者和Java接口一样。
+informal protocol中的方法属于设计模式考虑范畴，不是必须实现的，但是如果有实现，就会改变类的属性。
+其实关于正式协议，类别和非正式协议我很早前学习的时候大致看过，也写在了学习教程里
+“非正式协议概念其实就是类别的另一种表达方式“这里有一些你可能希望实现的方法，你可以使用他们更好的完成工作”。
+这个意思是，这些是可选的。比如我门要一个更好的方法，我们就会申明一个这样的类别去实现。然后你在后期可以直接使用这些更好的方法。
+这么看，总觉得类别这玩意儿有点像协议的可选协议。&quot;
+现在来看，其实protocal已经开始对两者都统一和规范起来操作，因为资料中说“非正式协议使用interface修饰“，
+现在我们看到协议中两个修饰词：“必须实现(@requied)”和“可选实现(@optional)”。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>What are KVO and KVC?</string>
+		<key>answer</key>
+		<string>kvc:键 - 值编码是一种间接访问对象的属性使用字符串来标识属性，而不是通过调用存取方法，直接或通过实例变量访问的机制。
+很多情况下可以简化程序代码。apple文档其实给了一个很好的例子。
+kvo:键值观察机制，他提供了观察某一属性变化的方法，极大的简化了代码。
+具体用看到嗯哼用到过的一个地方是对于按钮点击变化状态的的监控。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>代理的作用？</string>
+		<key>answer</key>
+		<string>代理的目的是改变或传递控制链。允许一个类在某些特定时刻通知到其他类，而不需要获取到那些类的指针。可以减少框架复杂度。
+另外一点，代理可以理解为java中的回调监听机制的一种类似。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>oc中可修改和不可以修改类型。</string>
+		<key>answer</key>
+		<string>可修改不可修改的集合类。这个我个人简单理解就是可动态添加修改和不可动态添加修改一样。
+比如NSArray和NSMutableArray。前者在初始化后的内存控件就是固定不可变的，后者可以添加等，可以动态申请新的内存空间</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>我们说的oc是动态运行时语言是什么意思？</string>
+		<key>answer</key>
+		<string>多态。主要是将数据类型的确定由编译时，推迟到了运行时。
+这个问题其实浅涉及到两个概念，运行时和多态。
+简单来说，运行时机制使我们直到运行时才去决定一个对象的类别，以及调用该类别对象指定方法。
+多态：不同对象以自己的方式响应相同的消息的能力叫做多态。意思就是假设生物类（life）都用有一个相同的方法-eat;
+那人类属于生物，猪也属于生物，都继承了life后，实现各自的eat，但是调用是我们只需调用各自的eat方法。
+也就是不同的对象以自己的方式响应了相同的消息（响应了eat这个选择器）。
+因此也可以说，运行时机制是多态的基础？~~~</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>通知和协议的不同之处？</string>
+		<key>answer</key>
+		<string>协议有控制链(has-a)的关系，通知没有。
+首先我一开始也不太明白，什么叫控制链（专业术语了~）。但是简单分析下通知和代理的行为模式，我们大致可以有自己的理解
+简单来说，通知的话，它可以一对多，一条消息可以发送给多个消息接受者。
+代理按我们的理解，到不是直接说不能一对多，比如我们知道的明星经济代理人，很多时候一个经济人负责好几个明星的事务。
+只是对于不同明星间，代理的事物对象都是不一样的，一一对应，不可能说明天要处理A明星要一个发布会，代理人发出处理发布会的消息后，别称B的
+发布会了。但是通知就不一样，他只关心发出通知，而不关心多少接收到感兴趣要处理。
+因此控制链（has-a从英语单词大致可以看出，单一拥有和可控制的对应关系。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>什么是推送消息？</string>
+		<key>answer</key>
+		<string>普通情况下，都是客户端主动的pull。
+推送则是服务器端主动push。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>关于多态性</string>
+		<key>answer</key>
+		<string>多态，子类指针可以赋值给父类。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>说说响应链</string>
+		<key>answer</key>
+		<string>事件响应链。包括点击事件，画面刷新事件等。在视图栈内从上至下，或者从下之上传播。
+可以说点事件的分发，传递以及处理。具体可以去看下touch事件这块。因为问的太抽象化了
+严重怀疑题目出到越后面就越笼统。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>frame和bounds有什么不同？</string>
+		<key>answer</key>
+		<string>frame指的是：该view在父view坐标系统中的位置和大小。（参照点是父亲的坐标系统）
+bounds指的是：该view在本身坐标系统中 的位置和大小。（参照点是本身坐标系统）</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>方法和选择器有何不同？</string>
+		<key>answer</key>
+		<string>selector是一个方法的名字，method是一个组合体，包含了名字和实现.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>NSOperation queue?</string>
+		<key>answer</key>
+		<string>存放NSOperation的集合类。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>What is lazy loading?</string>
+		<key>answer</key>
+		<string>懒汉模式，只在用到的时候才去初始化。
+也可以理解成延时加载。
+我觉得最好也最简单的一个列子就是tableView中图片的加载显示了。
+一个延时载，避免内存过高，一个异步加载，避免线程堵塞。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>是否在一个视图控制器中嵌入两个tableview控制器？</string>
+		<key>answer</key>
+		<string>一个视图控制只提供了一个View视图，理论上一个tableViewController也不能放吧，
+只能说可以嵌入一个tableview视图。当然，题目本身也有歧义，如果不是我们定性思维认为的UIViewController，
+而是宏观的表示视图控制者，那我们倒是可以把其看成一个视图控制者，它可以控制多个视图控制器，比如TabbarController
+那样的感觉</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>id、nil代表什么？</string>
+		<key>answer</key>
+		<string>id和void *并非完全一样。在上面的代码中，id是指向struct objc_object的一个指针，这个意思基本上是说，id是一个指向任何一个继承了Object（或者NSObject）类的对象。需要注意的是id是一个指针，所以你在使用id的时候不需要加星号。比如id foo=nil定义了一个nil指针，这个指针指向NSObject的一个任意子类。而id *foo=nil则定义了一个指针，这个指针指向另一个指针，被指向的这个指针指向NSObject的一个子类。
+
+nil和C语言的NULL相同，在objc/objc.h中定义。nil表示一个Objctive-C对象，这个对象的指针指向空（没有东西就是空）。
+
+首字母大写的Nil和nil有一点不一样，Nil定义一个指向空的类（是Class，而不是对象）</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>图层和UIView的区别是什么？</string>
+		<key>answer</key>
+		<string>两者最大的区别是,图层不会直接渲染到屏幕上，UIView是iOS系统中界面元素的基础，所有的界面元素都是继承自它。它本身完全是由CoreAnimation来实现的。它真正的绘图部分，是由一个CALayer类来管理。UIView本身更像是一个CALayer的管理器。一个UIView上可以有n个CALayer，每个layer显示一种东西，增强UIView的展现能力。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>HTTP协议</string>
+		<key>answer</key>
+		<string>HTTP是一个属于应用层的面向对象的协议，由于其简捷、快速的方式，适用于分布式超媒体信息系统。目前在WWW中使用的是HTTP/1.0的第六版，HTTP/1.1的规范化工作正在进行之中。
+
+ http（超文本传输协议）是一个基于请求与响应模式的、无状态的、应用层的协议，常基于TCP的连接方式，HTTP1.1版本中给出一种持续连接的机制，绝大多数的Web开发，都是构建在HTTP协议之上的Web应用。
+HTTP协议的主要特点可概括如下：
+1.支持客户/服务器模式。
+2.简单快速：客户向服务器请求服务时，只需传送请求方法和路径。请求方法常用的有GET、HEAD、POST。每种方法规定了客户与服务器联系的类型不同。由于HTTP协议简单，使得HTTP服务器的程序规模小，因而通信速度很快。
+3.灵活：HTTP允许传输任意类型的数据对象。正在传输的类型由Content-Type加以标记。
+4.无连接：无连接的含义是限制每次连接只处理一个请求。服务器处理完客户的请求，并收到客户的应答后，即断开连接。采用这种方式可以节省传输时间。
+5.无状态：HTTP协议是无状态协议。无状态是指协议对于事务处理没有记忆能力。缺少状态意味着如果后续处理需要前面的信息，则它必须重传，这样可能导致每次连接传送的数据量增大。另一方面，在服务器不需要先前信息时它的应答就较快。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>URL</string>
+		<key>answer</key>
+		<string>HTTP URL (URL是一种特殊类型的URI是他的子类，包含了用于查找某个资源的足够的信息)的格式如下：
+http://host[&quot;:&quot;port][abs_path]
+http表示要通过HTTP协议来定位网络资源；host表示合法的Internet主机域名或者IP地址；port指定一个端口号，为空则使用缺省端口80；abs_path指定请求资源的URI；如果URL中没有给出abs_path，那么当它作为请求URI时，必须以“/”的形式给出，通常这个工作浏览器自动帮我们完成。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>TCP/UDP区别联系</string>
+		<key>answer</key>
+		<string>TCP---传输控制协议,提供的是面向连接、可靠的字节流服务。当客户和服务器彼此交换数据前，必须先在双方之间建立一个TCP连接，之后才能传输数据。TCP提供超时重发，丢弃重复数据，检验数据，流量控制等功能，保证数据能从一端传到另一端。
+
+UDP---用户数据报协议，是一个简单的面向数据报的运输层协议。UDP不提供可靠性，它只是把应用程序传给IP层的数据报发送出去，但是并不能保证它们能到达目的地。由于UDP在传输数据报前不用在客户和服务器之间建立一个连接，且没有超时重发等机制，故而传输速度很快
+
+TCP（Transmission Control Protocol，传输控制协议）是基于连接的协议，也就是说，在正式收发数据前，必须和对方建立可靠的连接。一个TCP连接必须要经过三次“对话”才能建立起来，我们来看看这三次对话的简单过程：1.主机A向主机B发出连接请求数据包；2.主机B向主机A发送同意连接和要求同步（同步就是两台主机一个在发送，一个在接收，协调工作）的数据包；3.主机A再发出一个数据包确认主机B的要求同步：“我现在就发，你接着吧！”，这是第三次对话。三次“对话”的目的是使数据包的发送和接收同步，经过三次“对话”之后，主机A才向主机B正式发送数据。
+
+UDP（User Data Protocol，用户数据报协议）是与TCP相对应的协议。它是面向非连接的协议，它不与对方建立连接，而是直接就把数据包发送过去！  UDP适用于一次只传送少量数据、对可靠性要求不高的应用环境。
+
+tcp协议和udp协议的差别
+
+是否连接面向连接面向非连接
+
+传输可靠性可靠不可靠
+
+应用场合传输大量数据少量数据
+
+速度慢快</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>socket连接和http连接的区别</string>
+		<key>answer</key>
+		<string>简单说，你浏览的网页（网址以http://开头)都是http协议传输到你的浏览器的, 而http是基于socket之上的。socket是一套完成tcp，udp协议的接口。
+
+HTTP协议：简单对象访问协议，对应于应用层  ，HTTP协议是基于TCP连接的
+
+tcp协议：    对应于传输层
+
+ip协议：     对应于网络层
+TCP/IP是传输层协议，主要解决数据如何在网络中传输；而HTTP是应用层协议，主要解决如何包装数据。
+
+Socket是对TCP/IP协议的封装，Socket本身并不是协议，而是一个调用接口（API），通过Socket，我们才能使用TCP/IP协议。
+
+http连接：http连接就是所谓的短连接，即客户端向服务器端发送一次请求，服务器端响应后连接即会断掉；
+
+socket连接：socket连接就是所谓的长连接，理论上客户端和服务器端一旦建立起连接将不会主动断掉；但是由于各种环境因素可能会是连接断开，比如说：服务器端或客户端主机down了，网络故障，或者两者之间长时间没有数据传输，网络防火墙可能会断开该连接以释放网络资源。所以当一个socket连接中没有数据的传输，那么为了维持连接需要发送心跳消息~~具体心跳消息格式是开发者自己定义的
+
+我们已经知道网络中的进程是通过socket来通信的，那什么是socket呢？socket起源于Unix，而Unix/Linux基本哲学之一就是“一切皆文件”，都可以用“打开open –&gt; 读写write/read –&gt; 关闭close”模式来操作。我的理解就是Socket就是该模式的一个实现，socket即是一种特殊的文件，一些socket函数就是对其进行的操作（读/写IO、打开、关闭），这些函数我们在后面进行介绍。我们在传输数据时，可以只使用（传输层）TCP/IP协议，但是那样的话，如果没有应用层，便无法识别数据内容，如果想要使传输的数据有意义，则必须使用到应用层协议，应用层协议有很多，比如HTTP、FTP、TELNET等，也可以自己定义应用层协议。WEB使用HTTP协议作应用层协议，以封装HTTP文本信息，然后使用TCP/IP做传输层协议将它发到网络上。
+1)Socket是一个针对TCP和UDP编程的接口，你可以借助它建立TCP连接等等。而TCP和UDP协议属于传输层 。
+  而http是个应用层的协议，它实际上也建立在TCP协议之上。
+
+ (HTTP是轿车，提供了封装或者显示数据的具体形式；Socket是发动机，提供了网络通信的能力。)
+
+ 2）Socket是对TCP/IP协议的封装，Socket本身并不是协议，而是一个调用接口（API），通过Socket，我们才能使用TCP/IP协议。Socket的出现只是使得程序员更方便地使用TCP/IP协议栈而已，是对TCP/IP协议的抽象，从而形成了我们知道的一些最基本的函数接口。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>什么是TCP连接的三次握手</string>
+		<key>answer</key>
+		<string>第一次握手：客户端发送syn包(syn=j)到服务器，并进入SYN_SEND状态，等待服务器确认；
+第二次握手：服务器收到syn包，必须确认客户的SYN（ack=j+1），同时自己也发送一个SYN包（syn=k），即SYN+ACK包，此时服务器进入SYN_RECV状态；
+第三次握手：客户端收到服务器的SYN＋ACK包，向服务器发送确认包ACK(ack=k+1)，此包发送完毕，客户端和服务器进入ESTABLISHED状态，完成三次握手。
+
+握手过程中传送的包里不包含数据，三次握手完毕后，客户端与服务器才正式开始传送数据。理想状态下，TCP连接一旦建立，在通信双方中的任何一方主动关闭连接之前，TCP 连接都将被一直保持下去。断开连接时服务器和客户端均可以主动发起断开TCP连接的请求，断开过程需要经过“四次握手”（过程就不细写了，就是服务器和客户端交互，最终确定断开）</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>利用Socket建立网络连接的步骤</string>
+		<key>answer</key>
+		<string>建立Socket连接至少需要一对套接字，其中一个运行于客户端，称为ClientSocket ，另一个运行于服务器端，称为ServerSocket 。
+
+套接字之间的连接过程分为三个步骤：服务器监听，客户端请求，连接确认。
+
+1。服务器监听：服务器端套接字并不定位具体的客户端套接字，而是处于等待连接的状态，实时监控网络状态，等待客户端的连接请求。
+
+2。客户端请求：指客户端的套接字提出连接请求，要连接的目标是服务器端的套接字。为此，客户端的套接字必须首先描述它要连接的服务器的套接字，指出服务器端套接字的地址和端口号，然后就向服务器端套接字提出连接请求。
+
+3。连接确认：当服务器端套接字监听到或者说接收到客户端套接字的连接请求时，就响应客户端套接字的请求，建立一个新的线程，把服务器端套接字的描述发给客户端，一旦客户端确认了此描述，双方就正式建立连接。而服务器端套接字继续处于监听状态，继续接收其他客户端套接字的连接请求。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>进程与线程</string>
+		<key>answer</key>
+		<string>进程（process）是一块包含了某些资源的内存区域。操作系统利用进程把它的工作划分为一些功能单元。
+
+进程中所包含的一个或多个执行单元称为线程（thread）。进程还拥有一个私有的虚拟地址空间，该空间仅能被它所包含的线程访问。
+
+通常在一个进程中可以包含若干个线程，它们可以利用进程所拥有的资源。
+
+在引入线程的操作系统中，通常都是把进程作为分配资源的基本单位，而把线程作为独立运行和独立调度的基本单位。
+
+由于线程比进程更小，基本上不拥有系统资源，故对它的调度所付出的开销就会小得多，能更高效的提高系统内多个程序间并发执行的程度。
+
+简而言之,一个程序至少有一个进程,一个进程至少有一个线程.一个程序就是一个进程，而一个程序中的多个任务则被称为线程。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>多线程</string>
+		<key>answer</key>
+		<string>多线程编程是防止主线程堵塞，增加运行效率等等的最佳方法。而原始的多线程方法存在很多的毛病，包括线程锁死等。在Cocoa中，Apple提供了NSOperation这个类，提供了一个优秀的多线程编程方法。</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>堆和栈上的指针</string>
+		<key>answer</key>
+		<string>指针所指向的这块内存是在哪里分配的,在堆上称为堆上的指针,在栈上为栈上的指针.
+
+在堆上的指针,可以保存在全局数据结构中,供不同函数使用访问同一块内存.
+
+在栈上的指针,在函数退出后,该内存即不可访问.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>什么是指针的释放?</string>
+		<key>answer</key>
+		<string>具体来说包括两个概念.
+
+1 释放该指针指向的内存,只有堆上的内存才需要我们手工释放,栈上不需要.
+
+2 将该指针重定向为NULL.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>数据结构中的指针?</string>
+		<key>answer</key>
+		<string>其实就是指向一块内存的地址,通过指针传递,可实现复杂的内存访问.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>函数指针?</string>
+		<key>answer</key>
+		<string>指向一块函数的入口地址.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>指针作为函数的参数?</string>
+		<key>answer</key>
+		<string>比如指向一个复杂数据结构的指针作为函数变量
+
+这种方法避免整个复杂数据类型内存的压栈出栈操作,提高效率.
+
+注意:指针本身不可变,但指针指向的数据结构可以改变.</string>
+	</dict>
+	<dict>
+		<key>question</key>
+		<string>ViewController的生命周期</string>
+		<key>answer</key>
+		<string>1、 alloc                              创建对象，分配空间
+2、init (initWithNibName)　　初始化对象，初始化数据
+3、loadView　　　　　　　　  从nib载入视图 ，通常这一步不需要去干涉。除非你没有使用xib文件创建视图
+4、viewDidLoad　　　　　　　载入完成，可以进行自定义数据以及动态创建其他控件
+5、viewWillAppear                视图将出现在屏幕之前，马上这个视图就会被展现在屏幕上了
+6、viewDidAppear　　　　　  视图已在屏幕上渲染完成当一个视图被移除屏幕并且销毁的时候的执行顺序，这个顺序差不多和上面的相反
+7、viewWillDisappear            视图将被从屏幕上移除之前执行
+8、viewDidDisappear　　　　 视图已经被从屏幕上移除，用户看不到这个视图了
+9、dealloc                            视图被销毁，此处需要对你在init和viewDidLoad中创建的对象进行释放</string>
+	</dict>
+</array>
+</plist>

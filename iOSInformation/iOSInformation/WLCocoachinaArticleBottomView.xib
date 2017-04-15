@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="11762" systemVersion="16C67" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="11757"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="XuK-aN-stg" customClass="WLCocoachinaArticleBottomView">
+            <rect key="frame" x="0.0" y="0.0" width="405" height="67"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <subviews>
+                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="kPP-pz-cTg">
+                    <rect key="frame" x="0.0" y="0.0" width="101.5" height="67"/>
+                    <state key="normal" image="ic_recommend_toolbar_back_24x24_"/>
+                    <connections>
+                        <action selector="backBtnClick" destination="XuK-aN-stg" eventType="touchUpInside" id="b4K-vG-AX1"/>
+                    </connections>
+                </button>
+                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="SFl-MB-MMB">
+                    <rect key="frame" x="101.5" y="0.0" width="101" height="67"/>
+                    <state key="normal" image="ic_recommend_toolbar_favorite_24x24_"/>
+                    <connections>
+                        <action selector="likeBtnClick" destination="XuK-aN-stg" eventType="touchUpInside" id="LqT-xs-Cj1"/>
+                    </connections>
+                </button>
+                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="rmG-wr-Dr6">
+                    <rect key="frame" x="202.5" y="0.0" width="101.5" height="67"/>
+                    <state key="normal" image="ic_recommend_toolbar_share_24x24_"/>
+                    <connections>
+                        <action selector="shareBtnClick" destination="XuK-aN-stg" eventType="touchUpInside" id="EzY-cK-t2n"/>
+                    </connections>
+                </button>
+                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ZPU-Qh-SXE">
+                    <rect key="frame" x="304" y="0.0" width="101" height="67"/>
+                    <state key="normal" image="ic_recommend_toolbar_more_24x24_"/>
+                    <connections>
+                        <action selector="moreBtnClick" destination="XuK-aN-stg" eventType="touchUpInside" id="q6i-Ef-4Ei"/>
+                    </connections>
+                </button>
+            </subviews>
+            <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+            <constraints>
+                <constraint firstItem="kPP-pz-cTg" firstAttribute="leading" secondItem="XuK-aN-stg" secondAttribute="leading" id="3DN-f1-CFM"/>
+                <constraint firstAttribute="bottom" secondItem="rmG-wr-Dr6" secondAttribute="bottom" id="4bQ-Ti-VdT"/>
+                <constraint firstItem="rmG-wr-Dr6" firstAttribute="leading" secondItem="SFl-MB-MMB" secondAttribute="trailing" id="CO8-lL-YUM"/>
+                <constraint firstAttribute="bottom" secondItem="kPP-pz-cTg" secondAttribute="bottom" id="DET-a1-JWh"/>
+                <constraint firstItem="SFl-MB-MMB" firstAttribute="top" secondItem="XuK-aN-stg" secondAttribute="top" id="JBd-4A-zPU"/>
+                <constraint firstAttribute="bottom" secondItem="SFl-MB-MMB" secondAttribute="bottom" id="Lcr-dT-R4s"/>
+                <constraint firstItem="rmG-wr-Dr6" firstAttribute="width" secondItem="kPP-pz-cTg" secondAttribute="width" id="QgQ-NT-rhG"/>
+                <constraint firstAttribute="bottom" secondItem="ZPU-Qh-SXE" secondAttribute="bottom" id="SP9-wh-jUC"/>
+                <constraint firstItem="SFl-MB-MMB" firstAttribute="width" secondItem="kPP-pz-cTg" secondAttribute="width" id="UUH-NO-ekK"/>
+                <constraint firstItem="ZPU-Qh-SXE" firstAttribute="top" secondItem="XuK-aN-stg" secondAttribute="top" id="ZZ9-yN-Wtz"/>
+                <constraint firstItem="kPP-pz-cTg" firstAttribute="top" secondItem="XuK-aN-stg" secondAttribute="top" id="fs4-ON-NhU"/>
+                <constraint firstItem="rmG-wr-Dr6" firstAttribute="top" secondItem="XuK-aN-stg" secondAttribute="top" id="l65-y5-L2c"/>
+                <constraint firstItem="SFl-MB-MMB" firstAttribute="leading" secondItem="kPP-pz-cTg" secondAttribute="trailing" id="rAU-WH-P4x"/>
+                <constraint firstItem="ZPU-Qh-SXE" firstAttribute="width" secondItem="kPP-pz-cTg" secondAttribute="width" id="sNO-KZ-Yyg"/>
+                <constraint firstItem="ZPU-Qh-SXE" firstAttribute="leading" secondItem="rmG-wr-Dr6" secondAttribute="trailing" id="vAc-fC-ZVt"/>
+                <constraint firstAttribute="trailing" secondItem="ZPU-Qh-SXE" secondAttribute="trailing" id="yH5-cB-e8e"/>
+            </constraints>
+            <nil key="simulatedStatusBarMetrics"/>
+            <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
+            <connections>
+                <outlet property="likeBtn" destination="SFl-MB-MMB" id="EII-gD-q07"/>
+            </connections>
+            <point key="canvasLocation" x="-2505" y="-574"/>
+        </view>
+    </objects>
+    <resources>
+        <image name="ic_recommend_toolbar_back_24x24_" width="24" height="24"/>
+        <image name="ic_recommend_toolbar_favorite_24x24_" width="24" height="24"/>
+        <image name="ic_recommend_toolbar_more_24x24_" width="24" height="24"/>
+        <image name="ic_recommend_toolbar_share_24x24_" width="24" height="24"/>
+    </resources>
+</document>
